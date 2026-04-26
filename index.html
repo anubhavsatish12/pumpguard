@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PumpGuard — Circuit Simulator</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;700;900&display=swap');
+
+  :root {
+    --bg:       #0a0e1a;
+    --panel:    #0f1628;
+    --border:   #1e3a5f;
+    --accent:   #00d4ff;
+    --accent2:  #00ff9d;
+    --accent3:  #ff6b35;
+    --warn:     #ffd700;
+    --text:     #c8ddf0;
+    --textdim:  #4a7a9b;
+    --glow:     0 0 12px rgba(0,212,255,0.4);
+    --glow2:    0 0 12px rgba(0,255,157,0.4);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* grid background */
+  body::before {
+    content:'';
+    position:fixed; inset:0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events:none;
+    z-index:0;
+  }
+
+  .wrapper { position:relative; z-index:1; padding:20px; max-width:1400px; margin:0 auto; }
+
+  /* ── HEADER ── */
+  header {
+    display:flex; align-items:center; gap:20px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom:16px; margin-bottom:24px;
+  }
+  .logo {
+    font-family:'Orbitron',monospace;
+    font-size:22px; font-weight:900;
+    color:var(--accent);
+    text-shadow: var(--glow);
+    letter-spacing:2px;
+  }
+  .logo span { color:var(--accent2); }
+  .subtitle {
+    font-family:'Share Tech Mono',monospace;
+    font-size:11px; color:var(--textdim);
+    letter-spacing:1px;
+  }
+  .badge {
+    margin-left:auto;
+    background: rgba(0,212,255,0.1);
+    border:1px solid var(--accent);
+    border-radius:4px;
+    padding:4px 12px;
+    font-family:'Share Tech Mono',monospace;
+    font-size:11px; color:var(--accent);
+    letter-spacing:1px;
+  }
+
+  /* ── LAYOUT ── */
+  .main-grid {
+    display:grid;
+    grid-template-columns: 280px 1fr 260px;
+    gap:16px;
+  }
+
+  /* ── PANELS ── */
+  .panel {
+    background: var(--panel);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:16px;
+  }
+  .panel-title {
+    font-family:'Orbitron',monospace;
+    font-size:10px; letter-spacing:2px;
+    color:var(--accent); text-transform:uppercase;
+    border-bottom:1px solid var(--border);
+    padding-bottom:10px; margin-bottom:14px;
+  }
+
+  /* ── CONTROLS ── */
+  .control-row { margin-bottom:16px; }
+  .control-label {
+    display:flex; justify-content:space-between;
+    font-size:12px; font-weight:600;
+    color:var(--textdim); margin-bottom:6px;
+    font-family:'Share Tech Mono',monospace;
+  }
+  .control-value { color:var(--accent); }
+  input[type=range] {
+    width:100%; height:4px;
+    -webkit-appearance:none; appearance:none;
+    background: linear-gradient(90deg, var(--accent) var(--pct,50%), var(--border) var(--pct,50%));
+    border-radius:2px; outline:none; cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance:none;
+    width:14px; height:14px;
+    border-radius:50%;
+    background:var(--accent);
+    box-shadow: var(--glow);
+    cursor:pointer;
+  }
+
+  .select-row { margin-bottom:14px; }
+  select {
+    width:100%; padding:7px 10px;
+    background: rgba(0,212,255,0.05);
+    border:1px solid var(--border);
+    border-radius:4px;
+    color:var(--text);
+    font-family:'Share Tech Mono',monospace;
+    font-size:11px; cursor:pointer;
+    outline:none;
+  }
+  select:focus { border-color:var(--accent); }
+
+  /* mode buttons */
+  .mode-btns { display:flex; flex-direction:column; gap:6px; margin-bottom:16px; }
+  .mode-btn {
+    padding:8px 12px;
+    background: rgba(0,212,255,0.05);
+    border:1px solid var(--border);
+    border-radius:4px;
+    color:var(--textdim);
+    font-family:'Share Tech Mono',monospace;
+    font-size:11px; cursor:pointer;
+    text-align:left; letter-spacing:0.5px;
+    transition: all 0.2s;
+  }
+  .mode-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .mode-btn.active {
+    background: rgba(0,212,255,0.15);
+    border-color:var(--accent);
+    color:var(--accent);
+    box-shadow: var(--glow);
+  }
+
+  /* ── CANVAS AREA ── */
+  .canvas-wrap {
+    position:relative;
+    background: #080c18;
+    border:1px solid var(--border);
+    border-radius:8px;
+    overflow:hidden;
+  }
+  canvas#circuitCanvas {
+    display:block;
+    width:100%; height:100%;
+  }
+
+  /* oscilloscope overlay */
+  .scope-wrap {
+    position:absolute;
+    bottom:12px; right:12px;
+    width:220px; height:120px;
+    background: rgba(8,12,24,0.9);
+    border:1px solid var(--accent);
+    border-radius:6px;
+    overflow:hidden;
+  }
+  .scope-label {
+    position:absolute; top:4px; left:8px;
+    font-family:'Share Tech Mono',monospace;
+    font-size:9px; color:var(--accent);
+    letter-spacing:1px;
+  }
+  canvas#scopeCanvas { display:block; width:100%; height:100%; }
+
+  /* ── METRICS PANEL ── */
+  .metric {
+    margin-bottom:14px;
+    padding:10px;
+    background: rgba(0,0,0,0.3);
+    border:1px solid var(--border);
+    border-radius:6px;
+  }
+  .metric-name {
+    font-family:'Share Tech Mono',monospace;
+    font-size:9px; color:var(--textdim);
+    letter-spacing:1px; text-transform:uppercase;
+    margin-bottom:4px;
+  }
+  .metric-val {
+    font-family:'Orbitron',monospace;
+    font-size:20px; font-weight:700;
+    color:var(--accent2);
+    text-shadow: var(--glow2);
+  }
+  .metric-unit {
+    font-family:'Share Tech Mono',monospace;
+    font-size:11px; color:var(--textdim);
+    margin-left:4px;
+  }
+  .metric-sub {
+    font-family:'Share Tech Mono',monospace;
+    font-size:9px; color:var(--textdim);
+    margin-top:3px;
+  }
+
+  /* health bar */
+  .health-bar-wrap {
+    margin-bottom:14px;
+    padding:10px;
+    background: rgba(0,0,0,0.3);
+    border:1px solid var(--border);
+    border-radius:6px;
+  }
+  .health-bar-label {
+    display:flex; justify-content:space-between;
+    font-family:'Share Tech Mono',monospace;
+    font-size:9px; color:var(--textdim);
+    letter-spacing:1px; margin-bottom:6px;
+  }
+  .health-val {
+    font-family:'Orbitron',monospace;
+    font-size:18px; font-weight:700;
+  }
+  .health-bar-track {
+    height:8px; background:var(--border);
+    border-radius:4px; overflow:hidden;
+  }
+  .health-bar-fill {
+    height:100%; border-radius:4px;
+    transition: width 0.5s, background 0.5s;
+  }
+
+  /* SNR table */
+  .snr-table { width:100%; border-collapse:collapse; margin-top:4px; }
+  .snr-table th {
+    font-family:'Share Tech Mono',monospace;
+    font-size:8px; color:var(--textdim);
+    letter-spacing:1px; text-align:left;
+    padding:4px 6px; border-bottom:1px solid var(--border);
+  }
+  .snr-table td {
+    font-family:'Share Tech Mono',monospace;
+    font-size:10px; color:var(--text);
+    padding:5px 6px; border-bottom:1px solid rgba(30,58,95,0.5);
+  }
+  .snr-table td.val { color:var(--accent); font-weight:600; }
+  .snr-table td.good { color:var(--accent2); }
+  .snr-table tr:hover td { background:rgba(0,212,255,0.04); }
+
+  /* LED indicators */
+  .leds { display:flex; gap:10px; margin-bottom:14px; }
+  .led {
+    flex:1; padding:8px 4px;
+    border-radius:6px; text-align:center;
+    border:1px solid var(--border);
+    font-family:'Share Tech Mono',monospace;
+    font-size:9px; letter-spacing:1px;
+    transition: all 0.3s;
+  }
+  .led.on-green  { background:rgba(0,255,157,0.15); border-color:var(--accent2); color:var(--accent2); box-shadow:0 0 10px rgba(0,255,157,0.3); }
+  .led.on-yellow { background:rgba(255,215,0,0.15);  border-color:var(--warn);    color:var(--warn);    box-shadow:0 0 10px rgba(255,215,0,0.3); }
+  .led.on-red    { background:rgba(255,60,60,0.15);  border-color:#ff3c3c;        color:#ff3c3c;        box-shadow:0 0 10px rgba(255,60,60,0.3); }
+  .led.off       { opacity:0.25; color:var(--textdim); }
+
+  /* stage tabs */
+  .stage-tabs { display:flex; gap:4px; margin-bottom:12px; flex-wrap:wrap; }
+  .stage-tab {
+    padding:4px 8px;
+    background:rgba(0,212,255,0.05);
+    border:1px solid var(--border);
+    border-radius:3px;
+    font-family:'Share Tech Mono',monospace;
+    font-size:9px; color:var(--textdim);
+    cursor:pointer; letter-spacing:0.5px;
+    transition:all 0.2s;
+  }
+  .stage-tab:hover { border-color:var(--accent); color:var(--accent); }
+  .stage-tab.active { background:rgba(0,212,255,0.15); border-color:var(--accent); color:var(--accent); }
+
+  /* status bar */
+  .statusbar {
+    margin-top:14px;
+    padding:8px 12px;
+    background: rgba(0,212,255,0.05);
+    border:1px solid var(--border);
+    border-radius:4px;
+    font-family:'Share Tech Mono',monospace;
+    font-size:10px; color:var(--textdim);
+    letter-spacing:0.5px;
+  }
+  .statusbar span { color:var(--accent2); }
+
+  .divider {
+    height:1px; background:var(--border);
+    margin:12px 0;
+  }
+
+  /* animation */
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+  .pulsing { animation: pulse 1.5s infinite; }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- HEADER -->
+  <header>
+    <div>
+      <div class="logo">PUMP<span>GUARD</span></div>
+      <div class="subtitle">ANALOG SIGNAL CONDITIONING — CIRCUIT SIMULATOR</div>
+    </div>
+    <div class="badge">LM358 · ESP32 · SPICE-MODEL</div>
+  </header>
+
+  <div class="main-grid">
+
+    <!-- ── LEFT: CONTROLS ── -->
+    <div>
+      <div class="panel">
+        <div class="panel-title">⚙ Signal Source</div>
+
+        <div class="control-row">
+          <div class="control-label">
+            <span>AMPLITUDE</span>
+            <span class="control-value" id="ampVal">100 mV</span>
+          </div>
+          <input type="range" id="ampCtrl" min="10" max="500" value="100"
+            oninput="updateSlider(this,'ampVal',v=>v+' mV')">
+        </div>
+
+        <div class="control-row">
+          <div class="control-label">
+            <span>FREQUENCY</span>
+            <span class="control-value" id="freqVal">100 Hz</span>
+          </div>
+          <input type="range" id="freqCtrl" min="1" max="2000" value="100"
+            oninput="updateSlider(this,'freqVal',v=>v+' Hz')">
+        </div>
+
+        <div class="control-row">
+          <div class="control-label">
+            <span>DC OFFSET</span>
+            <span class="control-value" id="dcVal">0 mV</span>
+          </div>
+          <input type="range" id="dcCtrl" min="-500" max="500" value="0"
+            oninput="updateSlider(this,'dcVal',v=>v+' mV')">
+        </div>
+
+        <div class="control-row">
+          <div class="control-label">
+            <span>NOISE LEVEL</span>
+            <span class="control-value" id="noiseVal">10%</span>
+          </div>
+          <input type="range" id="noiseCtrl" min="0" max="100" value="10"
+            oninput="updateSlider(this,'noiseVal',v=>v+'%')">
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:16px">
+        <div class="panel-title">⚙ Circuit Parameters</div>
+
+        <div class="control-row">
+          <div class="control-label">
+            <span>AMP GAIN (Rf/Rin)</span>
+            <span class="control-value" id="gainVal">×11</span>
+          </div>
+          <input type="range" id="gainCtrl" min="1" max="22" value="11"
+            oninput="updateSlider(this,'gainVal',v=>'×'+v)">
+        </div>
+
+        <div class="control-row">
+          <div class="control-label">
+            <span>HPF CUTOFF</span>
+            <span class="control-value" id="hpfVal">10 Hz</span>
+          </div>
+          <input type="range" id="hpfCtrl" min="1" max="100" value="10"
+            oninput="updateSlider(this,'hpfVal',v=>v+' Hz')">
+        </div>
+
+        <div class="control-row">
+          <div class="control-label">
+            <span>LPF CUTOFF</span>
+            <span class="control-value" id="lpfVal">1000 Hz</span>
+          </div>
+          <input type="range" id="lpfCtrl" min="100" max="5000" value="1000"
+            oninput="updateSlider(this,'lpfVal',v=>v+' Hz')">
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="control-row">
+          <div class="control-label">
+            <span>GRID VOLTAGE</span>
+            <span class="control-value" id="gridVal">230 V</span>
+          </div>
+          <input type="range" id="gridCtrl" min="160" max="270" value="230"
+            oninput="updateSlider(this,'gridVal',v=>v+' V')">
+        </div>
+
+        <div class="control-row">
+          <div class="control-label">
+            <span>MOTOR CURRENT</span>
+            <span class="control-value" id="currVal">5.0 A</span>
+          </div>
+          <input type="range" id="currCtrl" min="10" max="120" value="50"
+            oninput="updateSlider(this,'currVal',v=>(v/10).toFixed(1)+' A')">
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:16px">
+        <div class="panel-title">⚙ View Mode</div>
+        <div class="mode-btns">
+          <button class="mode-btn active" id="btn-transient" onclick="setMode('transient')">
+            📈 TRANSIENT — Time Domain
+          </button>
+          <button class="mode-btn" id="btn-bode" onclick="setMode('bode')">
+            📊 BODE — Frequency Response
+          </button>
+          <button class="mode-btn" id="btn-snr" onclick="setMode('snr')">
+            🔬 SNR — Stage Analysis
+          </button>
+          <button class="mode-btn" id="btn-comp" onclick="setMode('comp')">
+            ⚡ COMPENSATION — Voltage Demo
+          </button>
+        </div>
+
+        <div class="panel-title" style="margin-top:8px">⚙ Probe Stage</div>
+        <div class="stage-tabs">
+          <div class="stage-tab active" onclick="setProbe(0,this)">RAW</div>
+          <div class="stage-tab" onclick="setProbe(1,this)">BUF</div>
+          <div class="stage-tab" onclick="setProbe(2,this)">AMP</div>
+          <div class="stage-tab" onclick="setProbe(3,this)">HPF</div>
+          <div class="stage-tab" onclick="setProbe(4,this)">LPF</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── CENTRE: CIRCUIT CANVAS ── -->
+    <div class="canvas-wrap" style="min-height:560px">
+      <canvas id="circuitCanvas"></canvas>
+      <div class="scope-wrap">
+        <div class="scope-label">OSCILLOSCOPE</div>
+        <canvas id="scopeCanvas"></canvas>
+      </div>
+    </div>
+
+    <!-- ── RIGHT: METRICS ── -->
+    <div>
+      <!-- Health -->
+      <div class="health-bar-wrap">
+        <div class="health-bar-label">
+          <span>PUMP HEALTH INDEX</span>
+          <span class="health-val" id="healthPct" style="color:var(--accent2)">---%</span>
+        </div>
+        <div class="health-bar-track">
+          <div class="health-bar-fill" id="healthBar" style="width:0%;background:var(--accent2)"></div>
+        </div>
+      </div>
+
+      <!-- LEDs -->
+      <div class="leds">
+        <div class="led off" id="ledG">GRN</div>
+        <div class="led off" id="ledY">YLW</div>
+        <div class="led off" id="ledR">RED</div>
+      </div>
+
+      <!-- Metrics -->
+      <div class="metric">
+        <div class="metric-name">Signal RMS (at probe)</div>
+        <div><span class="metric-val" id="mVibRMS">---</span><span class="metric-unit">V</span></div>
+        <div class="metric-sub" id="mVibSub">probe: RAW output</div>
+      </div>
+
+      <div class="metric">
+        <div class="metric-name">SNR at Probe Point</div>
+        <div><span class="metric-val" id="mSNR" style="color:var(--accent)">---</span><span class="metric-unit">dB</span></div>
+        <div class="metric-sub" id="mSNRSub">move probe between stages</div>
+      </div>
+
+      <div class="metric">
+        <div class="metric-name">Grid Voltage</div>
+        <div><span class="metric-val" id="mGrid" style="color:var(--warn)">---</span><span class="metric-unit">V</span></div>
+      </div>
+
+      <div class="metric">
+        <div class="metric-name">Raw vs Compensated Current</div>
+        <div>
+          <span style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--textdim)">RAW: </span>
+          <span class="metric-val" id="mRawI" style="font-size:16px;color:#ff6b35">---</span>
+          <span class="metric-unit">A</span>
+        </div>
+        <div>
+          <span style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--textdim)">COMP: </span>
+          <span class="metric-val" id="mCompI" style="font-size:16px;color:var(--accent2)">---</span>
+          <span class="metric-unit">A</span>
+        </div>
+        <div class="metric-sub" id="mCompSub">I_comp = I_raw × (230 / V_grid)</div>
+      </div>
+
+      <div class="metric">
+        <div class="metric-name">True Power</div>
+        <div><span class="metric-val" id="mPower" style="color:var(--accent)">---</span><span class="metric-unit">W</span></div>
+        <div class="metric-sub">P = 230 × I_comp × 0.85</div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- SNR Table -->
+      <div class="panel-title">SNR — All Stages</div>
+      <table class="snr-table">
+        <thead>
+          <tr><th>STAGE</th><th>SNR</th><th>ΔSNR</th></tr>
+        </thead>
+        <tbody id="snrTableBody">
+          <tr><td>Raw</td><td class="val" id="snr0">--</td><td>—</td></tr>
+          <tr><td>Buffer</td><td class="val" id="snr1">--</td><td class="good" id="dsnr1">--</td></tr>
+          <tr><td>Amp</td><td class="val" id="snr2">--</td><td class="good" id="dsnr2">--</td></tr>
+          <tr><td>HPF</td><td class="val" id="snr3">--</td><td class="good" id="dsnr3">--</td></tr>
+          <tr><td>LPF</td><td class="val" id="snr4">--</td><td class="good" id="dsnr4">--</td></tr>
+        </tbody>
+      </table>
+
+      <div class="statusbar" style="margin-top:12px" id="statusBar">
+        Status: <span>IDLE — adjust controls</span>
+      </div>
+    </div>
+
+  </div><!-- end main-grid -->
+</div><!-- end wrapper -->
+
+<script>
+// ── STATE ─────────────────────────────────────────────────────
+let simMode   = 'transient';
+let probeStage = 0;
+let t         = 0;
+let scopeBuf  = [];
+const SCOPE_W = 220, SCOPE_H = 120;
+
+// ── SLIDER HELPER ────────────────────────────────────────────
+function updateSlider(el, labelId, fmt) {
+  const v = parseFloat(el.value);
+  document.getElementById(labelId).textContent = fmt(v);
+  const min = parseFloat(el.min), max = parseFloat(el.max);
+  const pct = ((v - min)/(max - min))*100;
+  el.style.setProperty('--pct', pct+'%');
+}
+// init all sliders
+document.querySelectorAll('input[type=range]').forEach(el=>{
+  const min=parseFloat(el.min),max=parseFloat(el.max),v=parseFloat(el.value);
+  el.style.setProperty('--pct',((v-min)/(max-min))*100+'%');
+});
+
+function getVal(id){ return parseFloat(document.getElementById(id).value); }
+
+// ── SIGNAL PROCESSING FUNCTIONS ──────────────────────────────
+function genSignal(time) {
+  const amp   = getVal('ampCtrl')  / 1000;   // mV → V
+  const freq  = getVal('freqCtrl');
+  const dc    = getVal('dcCtrl')   / 1000;
+  const noise = getVal('noiseCtrl')/ 100;
+  return dc + amp * Math.sin(2*Math.PI*freq*time)
+       + amp * noise * (Math.random()*2-1);
+}
+
+function applyBuffer(v)  { return v; }
+function applyAmp(v)     { const g = getVal('gainCtrl'); return Math.max(-3.3,Math.min(3.3,v*g)); }
+function applyHPF(v, prev, dt) {
+  const fc = getVal('hpfCtrl');
+  const rc = 1/(2*Math.PI*fc);
+  const alpha = rc/(rc+dt);
+  return alpha*(prev + v - (window._hpfPrev||0));
+}
+function applyLPF(v, prev, dt) {
+  const fc = getVal('lpfCtrl');
+  const rc = 1/(2*Math.PI*fc);
+  const alpha = dt/(rc+dt);
+  return prev + alpha*(v-prev);
+}
+
+function getStageSignal(time, dt) {
+  window._dt = dt;
+  const raw = genSignal(time);
+  const buf = applyBuffer(raw);
+  const amp = applyAmp(buf);
+
+  if(!window._hpfState) window._hpfState = {prev:0,prevIn:0};
+  if(!window._lpfState) window._lpfState = {prev:0};
+
+  const fc_hpf = getVal('hpfCtrl');
+  const rc_hpf = 1/(2*Math.PI*fc_hpf);
+  const a_hpf  = rc_hpf/(rc_hpf+dt);
+  const hpf    = a_hpf*(window._hpfState.prev + amp - window._hpfState.prevIn);
+  window._hpfState.prev   = hpf;
+  window._hpfState.prevIn = amp;
+
+  const fc_lpf = getVal('lpfCtrl');
+  const rc_lpf = 1/(2*Math.PI*fc_lpf);
+  const a_lpf  = dt/(rc_lpf+dt);
+  const lpf    = window._lpfState.prev + a_lpf*(hpf - window._lpfState.prev);
+  window._lpfState.prev = lpf;
+
+  return [raw,buf,amp,hpf,lpf];
+}
+
+// SNR calculation (simulated)
+function calcSNR(stageIdx) {
+  const amp   = getVal('ampCtrl')/1000;
+  const noise = getVal('noiseCtrl')/100;
+  const gain  = getVal('gainCtrl');
+  const freq  = getVal('freqCtrl');
+  const fc_hpf= getVal('hpfCtrl');
+  const fc_lpf= getVal('lpfCtrl');
+
+  const sigBase = amp / Math.sqrt(2); // RMS of sine
+  const noiseBase = amp * noise / Math.sqrt(3);
+
+  let sig=sigBase, nse=noiseBase;
+  const snrs=[0,0,0,0,0];
+
+  // Raw
+  if(nse<0.001) nse=0.001;
+  snrs[0] = 20*Math.log10(sig/nse);
+
+  // Buffer — slight noise reduction (impedance isolation)
+  nse *= 0.85;
+  sig = sig;
+  snrs[1] = 20*Math.log10(sig/nse);
+
+  // Amplifier — both signal and noise amplified, but ADC range better used
+  sig *= gain; nse *= gain;
+  // effective SNR improvement from better ADC utilisation
+  const adcImprovement = 20*Math.log10(gain)/3;
+  snrs[2] = snrs[1] + adcImprovement;
+
+  // HPF — removes DC noise, low-freq noise
+  const hpfAttenuation = freq < fc_hpf ? (freq/fc_hpf) : 1.0;
+  nse *= 0.7 * hpfAttenuation;
+  snrs[3] = 20*Math.log10(sig/(nse+0.0001));
+
+  // LPF — removes high-freq noise
+  const lpfNoise = noise*0.4;
+  nse *= lpfNoise + 0.1;
+  snrs[4] = 20*Math.log10(sig/(nse+0.00001));
+
+  return snrs;
+}
+
+// ── VOLTAGE COMPENSATION ─────────────────────────────────────
+function calcCompensation() {
+  const vGrid  = getVal('gridCtrl');
+  const rawI   = getVal('currCtrl')/10;
+  const compI  = rawI * (230/vGrid);
+  const power  = 230 * compI * 0.85;
+  return {vGrid, rawI, compI, power};
+}
+
+// ── CIRCUIT CANVAS DRAWING ───────────────────────────────────
+const cc = document.getElementById('circuitCanvas');
+const cx = cc.getContext('2d');
+
+function resizeCanvas() {
+  const wrap = cc.parentElement;
+  cc.width   = wrap.clientWidth;
+  cc.height  = wrap.clientHeight || 560;
+}
+
+function drawCircuit() {
+  const W = cc.width, H = cc.height;
+  cx.clearRect(0,0,W,H);
+
+  // background
+  cx.fillStyle = '#080c18';
+  cx.fillRect(0,0,W,H);
+
+  if (simMode === 'transient') drawTransient(W,H);
+  else if (simMode === 'bode')  drawBode(W,H);
+  else if (simMode === 'snr')   drawSNRChart(W,H);
+  else if (simMode === 'comp')  drawCompDemo(W,H);
+}
+
+// ── TRANSIENT VIEW ───────────────────────────────────────────
+let waveHistory = [[],[],[],[],[]]; // one per stage
+const HIST = 300;
+
+function drawTransient(W,H) {
+  const dt = 1/2000;
+  t += dt;
+  const stages = getStageSignal(t, dt);
+
+  // push to history
+  stages.forEach((v,i)=>{ waveHistory[i].push(v); if(waveHistory[i].length>HIST) waveHistory[i].shift(); });
+
+  const stageNames  = ['RAW SENSOR','BUFFER OUT','AMPLIFIER OUT','HPF OUT','LPF OUT'];
+  const stageColors = ['#4a7a9b','#00d4ff','#ffd700','#ff6b35','#00ff9d'];
+  const rowH = H/5;
+
+  stages.forEach((v,si)=>{
+    const y0  = si*rowH;
+    const mid = y0 + rowH/2;
+    const isProbe = si===probeStage;
+
+    // row bg
+    cx.fillStyle = isProbe ? 'rgba(0,212,255,0.04)' : 'rgba(0,0,0,0)';
+    cx.fillRect(0,y0,W,rowH);
+
+    // row border
+    cx.strokeStyle = isProbe ? 'rgba(0,212,255,0.3)' : 'rgba(30,58,95,0.4)';
+    cx.lineWidth=1;
+    cx.beginPath(); cx.moveTo(0,y0); cx.lineTo(W,y0); cx.stroke();
+
+    // label
+    cx.fillStyle = isProbe ? '#00d4ff' : '#4a7a9b';
+    cx.font = `bold 10px 'Share Tech Mono'`;
+    cx.fillText(stageNames[si], 10, y0+14);
+
+    // centre line
+    cx.strokeStyle = 'rgba(30,58,95,0.6)';
+    cx.lineWidth=0.5;
+    cx.setLineDash([4,4]);
+    cx.beginPath(); cx.moveTo(0,mid); cx.lineTo(W,mid); cx.stroke();
+    cx.setLineDash([]);
+
+    // waveform
+    const hist = waveHistory[si];
+    if(hist.length<2) return;
+
+    // auto-scale
+    const mn = Math.min(...hist), mx = Math.max(...hist);
+    const range = Math.max(mx-mn, 0.01);
+    const padding = rowH*0.35;
+
+    cx.strokeStyle = stageColors[si];
+    cx.lineWidth = isProbe ? 2 : 1.2;
+    cx.shadowColor= isProbe ? stageColors[si] : 'transparent';
+    cx.shadowBlur = isProbe ? 6 : 0;
+    cx.beginPath();
+    hist.forEach((val,i)=>{
+      const x = (i/HIST)*W;
+      const y = mid + ((val-mn)/range - 0.5)*(rowH-padding)*-1;
+      i===0 ? cx.moveTo(x,y) : cx.lineTo(x,y);
+    });
+    cx.stroke();
+    cx.shadowBlur=0;
+
+    // voltage label
+    const vpp = (mx-mn)*1000;
+    cx.fillStyle = stageColors[si];
+    cx.font=`9px 'Share Tech Mono'`;
+    cx.fillText(`${vpp.toFixed(0)}mVpp`, W-80, y0+14);
+  });
+
+  // update scope
+  drawScope(stages[probeStage]);
+}
+
+// ── BODE PLOT VIEW ───────────────────────────────────────────
+function drawBode(W,H) {
+  const fc_hpf = getVal('hpfCtrl');
+  const fc_lpf = getVal('lpfCtrl');
+  const gain   = getVal('gainCtrl');
+
+  const pad = {t:40,r:40,b:50,l:70};
+  const pw = W-pad.l-pad.r, ph = H-pad.t-pad.b;
+
+  // axes
+  cx.strokeStyle='#1e3a5f'; cx.lineWidth=1;
+  cx.beginPath();
+  cx.moveTo(pad.l,pad.t); cx.lineTo(pad.l,pad.t+ph); cx.lineTo(pad.l+pw,pad.t+ph);
+  cx.stroke();
+
+  // title
+  cx.fillStyle='#00d4ff'; cx.font="bold 11px 'Share Tech Mono'";
+  cx.fillText('BODE PLOT — FULL CONDITIONING CHAIN', pad.l, 22);
+  cx.fillStyle='#4a7a9b'; cx.font="9px 'Share Tech Mono'";
+  cx.fillText('Frequency (Hz)',pad.l+pw/2-40,H-8);
+
+  // Y axis label
+  cx.save(); cx.translate(14,pad.t+ph/2);
+  cx.rotate(-Math.PI/2);
+  cx.fillStyle='#4a7a9b'; cx.font="9px 'Share Tech Mono'";
+  cx.fillText('Gain (dB)', -30, 0);
+  cx.restore();
+
+  // grid
+  const freqPoints=[1,2,5,10,20,50,100,200,500,1000,2000,5000,10000];
+  const dbRange={min:-40,max:30};
+
+  const fToX = f => pad.l + (Math.log10(f)-Math.log10(1))/(Math.log10(10000)-Math.log10(1))*pw;
+  const dbToY= db=> pad.t + (1-(db-dbRange.min)/(dbRange.max-dbRange.min))*ph;
+
+  // grid lines
+  freqPoints.forEach(f=>{
+    cx.strokeStyle='rgba(30,58,95,0.5)'; cx.lineWidth=0.5; cx.setLineDash([2,4]);
+    cx.beginPath(); cx.moveTo(fToX(f),pad.t); cx.lineTo(fToX(f),pad.t+ph); cx.stroke();
+    cx.setLineDash([]);
+    cx.fillStyle='#4a7a9b'; cx.font="8px 'Share Tech Mono'";
+    cx.fillText(f>=1000?f/1000+'k':f+'', fToX(f)-8, pad.t+ph+14);
+  });
+
+  [-40,-30,-20,-10,0,10,20].forEach(db=>{
+    const y=dbToY(db);
+    cx.strokeStyle='rgba(30,58,95,0.5)'; cx.lineWidth=0.5; cx.setLineDash([2,4]);
+    cx.beginPath(); cx.moveTo(pad.l,y); cx.lineTo(pad.l+pw,y); cx.stroke();
+    cx.setLineDash([]);
+    cx.fillStyle='#4a7a9b'; cx.font="8px 'Share Tech Mono'";
+    cx.fillText(db+'dB', 4, y+3);
+  });
+
+  // Transfer function: HPF × AMP × LPF
+  const gainDb = 20*Math.log10(gain);
+  const freqs = [];
+  for(let i=0;i<=300;i++) freqs.push(Math.pow(10, Math.log10(1)+i/300*(Math.log10(10000)-Math.log10(1))));
+
+  // HPF alone
+  cx.strokeStyle='rgba(255,107,53,0.6)'; cx.lineWidth=1.5;
+  cx.beginPath();
+  freqs.forEach((f,i)=>{
+    const db=20*Math.log10(f/fc_hpf/Math.sqrt(1+(fc_hpf/f)**2));
+    const x=fToX(f), y=dbToY(db);
+    i===0?cx.moveTo(x,y):cx.lineTo(x,y);
+  });
+  cx.stroke();
+
+  // LPF alone
+  cx.strokeStyle='rgba(0,212,255,0.6)'; cx.lineWidth=1.5;
+  cx.beginPath();
+  freqs.forEach((f,i)=>{
+    const db=20*Math.log10(1/Math.sqrt(1+(f/fc_lpf)**2));
+    const x=fToX(f), y=dbToY(db);
+    i===0?cx.moveTo(x,y):cx.lineTo(x,y);
+  });
+  cx.stroke();
+
+  // Combined (HPF × Gain × LPF)
+  cx.strokeStyle='#00ff9d'; cx.lineWidth=2.5;
+  cx.shadowColor='#00ff9d'; cx.shadowBlur=6;
+  cx.beginPath();
+  freqs.forEach((f,i)=>{
+    const hpf_db=20*Math.log10((f/fc_hpf)/Math.sqrt(1+(fc_hpf/f)**2));
+    const lpf_db=20*Math.log10(1/Math.sqrt(1+(f/fc_lpf)**2));
+    const db=hpf_db+gainDb+lpf_db;
+    const clamped=Math.max(dbRange.min,Math.min(dbRange.max,db));
+    const x=fToX(f), y=dbToY(clamped);
+    i===0?cx.moveTo(x,y):cx.lineTo(x,y);
+  });
+  cx.stroke();
+  cx.shadowBlur=0;
+
+  // cutoff markers
+  [fc_hpf, fc_lpf].forEach((fc,i)=>{
+    cx.strokeStyle='rgba(255,215,0,0.7)'; cx.lineWidth=1; cx.setLineDash([4,4]);
+    cx.beginPath(); cx.moveTo(fToX(fc),pad.t); cx.lineTo(fToX(fc),pad.t+ph); cx.stroke();
+    cx.setLineDash([]);
+    cx.fillStyle='#ffd700'; cx.font="9px 'Share Tech Mono'";
+    cx.fillText((i===0?'HPF ':'LPF ')+'fc='+fc+'Hz', fToX(fc)+4, pad.t+18+i*14);
+  });
+
+  // legend
+  const leg=[['#ff6b35','HPF only'],['#00d4ff','LPF only'],['#00ff9d','Full Chain (×'+gain+')']];
+  leg.forEach(([c,l],i)=>{
+    cx.fillStyle=c; cx.fillRect(pad.l+pw-140,pad.t+10+i*16,20,2);
+    cx.fillStyle='#c8ddf0'; cx.font="9px 'Share Tech Mono'";
+    cx.fillText(l, pad.l+pw-116, pad.t+14+i*16);
+  });
+}
+
+// ── SNR BAR CHART ────────────────────────────────────────────
+function drawSNRChart(W,H) {
+  const snrs = calcSNR(probeStage);
+  const names=['Raw\nSensor','Buffer\nOut','Amp\nOut','HPF\nOut','LPF\nOut'];
+  const colors=['#4a7a9b','#00d4ff','#ffd700','#ff6b35','#00ff9d'];
+
+  const pad={t:60,r:40,b:70,l:80};
+  const pw=W-pad.l-pad.r, ph=H-pad.t-pad.b;
+  const maxSNR=50;
+
+  cx.fillStyle='#00d4ff'; cx.font="bold 11px 'Share Tech Mono'";
+  cx.fillText('SNR IMPROVEMENT — STAGE BY STAGE', pad.l, 28);
+  cx.fillStyle='#4a7a9b'; cx.font="9px 'Share Tech Mono'";
+  cx.fillText('Signal-to-Noise Ratio (dB) at each conditioning stage output', pad.l, 44);
+
+  // axes
+  cx.strokeStyle='#1e3a5f'; cx.lineWidth=1;
+  cx.beginPath();
+  cx.moveTo(pad.l,pad.t); cx.lineTo(pad.l,pad.t+ph); cx.lineTo(pad.l+pw,pad.t+ph);
+  cx.stroke();
+
+  // grid lines
+  for(let db=0;db<=maxSNR;db+=10){
+    const y=pad.t+ph-(db/maxSNR)*ph;
+    cx.strokeStyle='rgba(30,58,95,0.5)'; cx.lineWidth=0.5; cx.setLineDash([2,4]);
+    cx.beginPath(); cx.moveTo(pad.l,y); cx.lineTo(pad.l+pw,y); cx.stroke();
+    cx.setLineDash([]);
+    cx.fillStyle='#4a7a9b'; cx.font="9px 'Share Tech Mono'";
+    cx.fillText(db+'dB', 4, y+3);
+  }
+
+  const barW = pw/5*0.6;
+  const barGap = pw/5;
+
+  snrs.forEach((snr,i)=>{
+    const x = pad.l + i*barGap + barGap*0.2;
+    const barH = Math.max(0,(snr/maxSNR)*ph);
+    const y = pad.t+ph-barH;
+
+    // bar gradient
+    const grad=cx.createLinearGradient(x,y,x,pad.t+ph);
+    grad.addColorStop(0,colors[i]);
+    grad.addColorStop(1,colors[i]+'33');
+    cx.fillStyle=grad;
+    cx.fillRect(x,y,barW,barH);
+
+    // bar outline
+    cx.strokeStyle=colors[i];
+    cx.lineWidth= i===probeStage?2:1;
+    cx.shadowColor=colors[i]; cx.shadowBlur= i===probeStage?10:0;
+    cx.strokeRect(x,y,barW,barH);
+    cx.shadowBlur=0;
+
+    // value label
+    cx.fillStyle=colors[i]; cx.font="bold 10px 'Share Tech Mono'";
+    cx.fillText(snr.toFixed(1)+'dB', x, y-6);
+
+    // improvement label
+    if(i>0){
+      const delta=snr-snrs[i-1];
+      cx.fillStyle='#00ff9d'; cx.font="9px 'Share Tech Mono'";
+      cx.fillText('+'+delta.toFixed(1), x, y-18);
+    }
+
+    // stage name
+    cx.fillStyle= i===probeStage?'#00d4ff':'#4a7a9b';
+    cx.font="9px 'Share Tech Mono'";
+    cx.fillText(names[i].split('\n')[0], x, pad.t+ph+16);
+    cx.fillText(names[i].split('\n')[1], x, pad.t+ph+28);
+  });
+
+  // total improvement
+  const total = snrs[4]-snrs[0];
+  cx.fillStyle='#00ff9d'; cx.font="bold 12px 'Share Tech Mono'";
+  cx.fillText(`Total improvement: +${total.toFixed(1)} dB`, pad.l+pw-220, pad.t+20);
+
+  // update snr table
+  snrs.forEach((s,i)=>{
+    const el=document.getElementById('snr'+i);
+    if(el) el.textContent=s.toFixed(1)+'dB';
+    if(i>0){
+      const d=document.getElementById('dsnr'+i);
+      if(d) d.textContent='+'+( s-snrs[i-1]).toFixed(1)+'dB';
+    }
+  });
+}
+
+// ── COMPENSATION DEMO ────────────────────────────────────────
+function drawCompDemo(W,H) {
+  const {vGrid,rawI,compI,power}=calcCompensation();
+  const pad={t:60,r:40,b:60,l:80};
+  const pw=W-pad.l-pad.r, ph=(H-pad.t-pad.b)/2;
+
+  cx.fillStyle='#00d4ff'; cx.font="bold 11px 'Share Tech Mono'";
+  cx.fillText('GRID VOLTAGE COMPENSATION DEMONSTRATION', pad.l, 28);
+
+  // Draw bar comparison
+  const voltages=[160,180,200,220,230,240,250,260,270];
+  const currentMotor = getVal('currCtrl')/10; // at 230V
+  const barW = pw/voltages.length*0.6;
+  const barGap= pw/voltages.length;
+  const maxI  = currentMotor*(230/160)*1.1;
+
+  // section 1: raw current bars
+  cx.fillStyle='#4a7a9b'; cx.font="10px 'Share Tech Mono'";
+  cx.fillText('RAW CURRENT (uncompensated) vs GRID VOLTAGE', pad.l, pad.t+12);
+
+  voltages.forEach((v,i)=>{
+    const rawI_v = currentMotor*(230/v); // healthy pump draws more at lower V
+    const x=pad.l+i*barGap+barGap*0.2;
+    const barH=(rawI_v/maxI)*ph;
+    const y=pad.t+20+ph-barH;
+
+    const isNominal=v===230;
+    cx.fillStyle=v<210?'rgba(255,60,60,0.6)':v>245?'rgba(255,107,53,0.6)':'rgba(0,212,255,0.6)';
+    cx.fillRect(x,y,barW,barH);
+    cx.strokeStyle=isNominal?'#ffd700':'#1e3a5f'; cx.lineWidth=isNominal?2:1;
+    cx.strokeRect(x,y,barW,barH);
+
+    cx.fillStyle='#c8ddf0'; cx.font="8px 'Share Tech Mono'";
+    cx.fillText(rawI_v.toFixed(1)+'A',x,y-4);
+    cx.fillText(v+'V',x,pad.t+20+ph+14);
+  });
+
+  // section 2: compensated bars (should be flat)
+  cx.fillStyle='#00ff9d'; cx.font="10px 'Share Tech Mono'";
+  cx.fillText('COMPENSATED CURRENT (normalised to 230V) — should be FLAT', pad.l, pad.t+ph+40);
+
+  voltages.forEach((v,i)=>{
+    const rawI_v  = currentMotor*(230/v);
+    const compI_v = rawI_v*(230/v); // double compensation shows concept
+    const corrI   = currentMotor; // correctly compensated = constant
+    const x=pad.l+i*barGap+barGap*0.2;
+    const barH=(corrI/maxI)*ph;
+    const y=pad.t+ph+50+ph-barH;
+
+    cx.fillStyle='rgba(0,255,157,0.5)';
+    cx.fillRect(x,y,barW,barH);
+    cx.strokeStyle='#00ff9d'; cx.lineWidth=1;
+    cx.strokeRect(x,y,barW,barH);
+
+    cx.fillStyle='#00ff9d'; cx.font="8px 'Share Tech Mono'";
+    cx.fillText(corrI.toFixed(1)+'A',x,y-4);
+    cx.fillText(v+'V',x,pad.t+ph+50+ph+14);
+  });
+
+  // labels
+  cx.strokeStyle='rgba(255,215,0,0.5)'; cx.lineWidth=1; cx.setLineDash([4,4]);
+  cx.beginPath();
+  cx.moveTo(pad.l,pad.t+20+(1-(currentMotor/maxI))*ph);
+  cx.lineTo(pad.l+pw,pad.t+20+(1-(currentMotor/maxI))*ph);
+  cx.stroke(); cx.setLineDash([]);
+  cx.fillStyle='#ffd700'; cx.font="9px 'Share Tech Mono'";
+  cx.fillText('← nominal (230V baseline)', pad.l+pw-180, pad.t+20+(1-(currentMotor/maxI))*ph-4);
+}
+
+// ── OSCILLOSCOPE ─────────────────────────────────────────────
+const sc = document.getElementById('scopeCanvas');
+const sx = sc.getContext('2d');
+sc.width=SCOPE_W; sc.height=SCOPE_H;
+let scopeHistory=[];
+
+function drawScope(val) {
+  scopeHistory.push(val);
+  if(scopeHistory.length>SCOPE_W-20) scopeHistory.shift();
+
+  sx.fillStyle='#060a12';
+  sx.fillRect(0,0,SCOPE_W,SCOPE_H);
+
+  // grid
+  for(let i=0;i<4;i++){
+    sx.strokeStyle='rgba(0,212,255,0.08)'; sx.lineWidth=0.5;
+    sx.beginPath(); sx.moveTo(0,i*(SCOPE_H/4)); sx.lineTo(SCOPE_W,i*(SCOPE_H/4)); sx.stroke();
+    sx.beginPath(); sx.moveTo(i*(SCOPE_W/4),0); sx.lineTo(i*(SCOPE_W/4),SCOPE_H); sx.stroke();
+  }
+
+  const mx=Math.max(...scopeHistory.map(Math.abs),0.01);
+  sx.strokeStyle='#00ff9d'; sx.lineWidth=1.5;
+  sx.shadowColor='#00ff9d'; sx.shadowBlur=4;
+  sx.beginPath();
+  scopeHistory.forEach((v,i)=>{
+    const x=20+i;
+    const y=SCOPE_H/2-(v/mx)*(SCOPE_H/2-10);
+    i===0?sx.moveTo(x,y):sx.lineTo(x,y);
+  });
+  sx.stroke(); sx.shadowBlur=0;
+
+  // value
+  sx.fillStyle='#00ff9d'; sx.font="8px 'Share Tech Mono'";
+  sx.fillText((val*1000).toFixed(1)+'mV', SCOPE_W-60, SCOPE_H-6);
+}
+
+// ── METRICS UPDATE ────────────────────────────────────────────
+function updateMetrics() {
+  const snrs = calcSNR(probeStage);
+  const {vGrid,rawI,compI,power} = calcCompensation();
+
+  // SNR at probe
+  const snrAtProbe = snrs[probeStage];
+  document.getElementById('mSNR').textContent = snrAtProbe.toFixed(1);
+
+  // Vib RMS estimate
+  const amp = getVal('ampCtrl')/1000;
+  const gain= getVal('gainCtrl');
+  const rmsVals=[amp/Math.sqrt(2),amp/Math.sqrt(2),amp*gain/Math.sqrt(2),
+                 amp*gain/Math.sqrt(2)*0.9,amp*gain/Math.sqrt(2)*0.85];
+  document.getElementById('mVibRMS').textContent = rmsVals[probeStage].toFixed(4);
+  document.getElementById('mVibSub').textContent = 'probe: '+['RAW','BUFFER','AMP','HPF','LPF'][probeStage]+' output';
+
+  // grid / current
+  document.getElementById('mGrid').textContent   = vGrid.toFixed(0);
+  document.getElementById('mRawI').textContent   = rawI.toFixed(2);
+  document.getElementById('mCompI').textContent  = compI.toFixed(2);
+  document.getElementById('mPower').textContent  = power.toFixed(0);
+
+  // Health index
+  const vibRatio  = rmsVals[4]/rmsVals[4]; // 1.0 baseline
+  const currRatio = compI/(getVal('currCtrl')/10);
+  let health = 100 - Math.max(0,(vibRatio-1)*40) - Math.max(0,(currRatio-1)*40);
+  if(vGrid<200) health -= 5;
+  health = Math.max(0,Math.min(100,health));
+
+  const hEl = document.getElementById('healthPct');
+  const hBar= document.getElementById('healthBar');
+  hEl.textContent = health.toFixed(0)+'%';
+  hBar.style.width= health+'%';
+
+  const ledG=document.getElementById('ledG');
+  const ledY=document.getElementById('ledY');
+  const ledR=document.getElementById('ledR');
+  ledG.className='led off'; ledY.className='led off'; ledR.className='led off';
+
+  let statusMsg='';
+  if(health>=70){
+    hEl.style.color='var(--accent2)'; hBar.style.background='var(--accent2)';
+    ledG.className='led on-green';
+    statusMsg='HEALTHY — pump operating normally';
+  } else if(health>=40){
+    hEl.style.color='var(--warn)'; hBar.style.background='var(--warn)';
+    ledY.className='led on-yellow';
+    statusMsg='WARNING — inspect pump soon';
+  } else {
+    hEl.style.color='#ff3c3c'; hBar.style.background='#ff3c3c';
+    ledR.className='led on-red pulsing';
+    statusMsg='CRITICAL — stop pump immediately!';
+  }
+
+  document.getElementById('statusBar').innerHTML=`Status: <span>${statusMsg}</span>`;
+
+  // Voltage status
+  const mCompSub=document.getElementById('mCompSub');
+  if(vGrid<210) mCompSub.innerHTML='<span style="color:#ff6b35">⚠ Voltage SAG — compensation active</span>';
+  else if(vGrid>245) mCompSub.innerHTML='<span style="color:#ff6b35">⚠ Voltage SPIKE — compensation active</span>';
+  else mCompSub.innerHTML='✓ Voltage normal — I_comp = I_raw × (230/V_grid)';
+}
+
+// ── MODE / PROBE SWITCHERS ────────────────────────────────────
+function setMode(m) {
+  simMode=m;
+  document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('btn-'+m).classList.add('active');
+  waveHistory=[[],[],[],[],[]];
+  scopeHistory=[];
+}
+function setProbe(idx,el) {
+  probeStage=idx;
+  document.querySelectorAll('.stage-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ── ANIMATION LOOP ────────────────────────────────────────────
+let frame=0;
+function loop() {
+  resizeCanvas();
+  drawCircuit();
+  frame++;
+  if(frame%6===0) updateMetrics();
+  requestAnimationFrame(loop);
+}
+
+window.addEventListener('resize',resizeCanvas);
+resizeCanvas();
+loop();
+</script>
+</body>
+</html>
